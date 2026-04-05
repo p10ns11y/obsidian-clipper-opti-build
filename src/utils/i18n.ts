@@ -3,39 +3,7 @@ import browser from './browser-polyfill';
 import { getLocalStorage, setLocalStorage } from './storage-utils';
 import DOMPurify from 'dompurify';
 
-// Import dayjs locales that match our supported languages
-import 'dayjs/locale/ar';
-import 'dayjs/locale/ca';
-import 'dayjs/locale/cs';
-import 'dayjs/locale/da';
-import 'dayjs/locale/de';
-import 'dayjs/locale/el';
-import 'dayjs/locale/en';
-import 'dayjs/locale/es';
-import 'dayjs/locale/fa';
-import 'dayjs/locale/fi';
-import 'dayjs/locale/fr';
-import 'dayjs/locale/he';
-import 'dayjs/locale/hi';
-import 'dayjs/locale/hu';
-import 'dayjs/locale/id';
-import 'dayjs/locale/it';
-import 'dayjs/locale/ja';
-import 'dayjs/locale/ko';
-import 'dayjs/locale/nb';
-import 'dayjs/locale/nl';
-import 'dayjs/locale/pl';
-import 'dayjs/locale/pt';
-import 'dayjs/locale/ro';
-import 'dayjs/locale/ru';
-import 'dayjs/locale/sv';
-import 'dayjs/locale/th';
-import 'dayjs/locale/tl-ph';
-import 'dayjs/locale/tr';
-import 'dayjs/locale/uk';
-import 'dayjs/locale/vi';
-import 'dayjs/locale/zh-tw';
-import 'dayjs/locale/zh';
+// Dayjs locales are imported dynamically
 
 function convertToLocaleCode(locale: string): string {
 	// Convert locale codes like 'pt_BR' to 'pt-br'
@@ -53,14 +21,20 @@ function convertToLocaleCode(locale: string): string {
 	return lowercaseLocale.replace('_', '-');
 }
 
-export function setDayjsLocale(locale: string): void {
-	const dayjsLocale = convertToLocaleCode(locale);
-	try {
-		dayjs.locale(dayjsLocale);
-	} catch (error) {
-		console.warn(`Failed to set dayjs locale for ${locale}, falling back to English`, error);
-		dayjs.locale('en');
-	}
+export async function setDayjsLocale(locale: string): Promise<void> {
+  const dayjsLocale = convertToLocaleCode(locale);
+  try {
+    await import(`dayjs/locale/${dayjsLocale}.js`);
+    dayjs.locale(dayjsLocale);
+  } catch (error) {
+    console.warn(`Failed to set dayjs locale for ${locale}, falling back to English`, error);
+    try {
+      await import('dayjs/locale/en.js');
+      dayjs.locale('en');
+    } catch (fallbackError) {
+      console.warn('Failed to load English locale', fallbackError);
+    }
+  }
 }
 
 let currentLanguage: string | null = null;
@@ -142,9 +116,9 @@ export function matchBrowserLanguage(): string {
 }
 
 export async function initializeI18n() {
-	const { code } = await getEffectiveLanguage();
-	currentLanguage = code;
-	setDayjsLocale(code);
+  const { code } = await getEffectiveLanguage();
+  currentLanguage = code;
+  await setDayjsLocale(code);
 }
 
 export function getMessage(messageName: string, substitutions?: string | string[]): string {
